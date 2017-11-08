@@ -55,6 +55,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="HtmlWriter.cs" />
     <Compile Include="Md.cs" />
     <Compile Include="Md_ShouldRender.cs" />
     <Compile Include="Program.cs" />

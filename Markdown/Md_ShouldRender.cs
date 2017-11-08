@@ -58,15 +58,30 @@ namespace Markdown
             parser.RenderToHtml(str).Should().BeEquivalentTo(str);
         }
 
-        /*[Test]
+        [Test]
         public void RenderToHtml_ShouldRenderEmWithinStrong_WhenSingleUnderlinesWithinDoubleUnderlines()
         {
             const string str = "Внутри __двойного выделения _одинарное_ тоже__ работает.";
             const string result = "Внутри <strong>двойного выделения <em>одинарное</em> тоже</strong> работает.";
             parser.RenderToHtml(str).Should().BeEquivalentTo(result);
         }
+        [Test]
+        public void RenderToHtml_ShouldRenderEmWithinStrong_WhenAlotSingleUnderlinesWithinDoubleUnderlines()
+        {
+            const string str = "начало __пре _нестед1_ центр _нестед2_ паст__ конец.";
+            const string result = "начало <strong>пре <em>нестед1</em> центр <em>нестед2</em> паст</strong> конец.";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(result);
+        }
 
         [Test]
+        public void RenderToHtml_ShouldRender_WhenStrikeWithinSingleUnderlineWithinDoubleUnderline()
+        {
+            const string str = "Внутри __двойного _одинарное ~~зачеркнутое~~ конец_ тоже__ работает.";
+            const string result = "Внутри <strong>двойного <em>одинарное <strike>зачеркнутое</strike> конец</em> тоже</strong> работает.";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(result);
+        }
+        
+        /*[Test]
         public void RenderToHtml_ShouldNotRender_WhenDoubleUnderlinesWithinSingleUnderlines()
         {
             const string str = "Но не наоборот — внутри _одинарного __двойное__ не работает_.";
