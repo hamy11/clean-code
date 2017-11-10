@@ -20,6 +20,7 @@ namespace Markdown
             const string str = "string without tags";
             parser.RenderToHtml(str).Should().BeEquivalentTo(str);
         }
+        
 
         [Test]
         public void RenderToHtml_ShouldRenderEmTag_WhenSurroundedBySingleUnderlines()
@@ -52,13 +53,6 @@ namespace Markdown
         }
 
         [Test]
-        public void RenderToHtml_ShouldNotRender_WhenShieldedSingleUnderlines()
-        {
-            const string str = "Не часть разметки.\\_Вот это\\_, не должно выделиться тегом < em>.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
-        }
-
-        [Test]
         public void RenderToHtml_ShouldRenderEmWithinStrong_WhenSingleUnderlinesWithinDoubleUnderlines()
         {
             const string str = "Внутри __двойного выделения _одинарное_ тоже__ работает.";
@@ -80,12 +74,49 @@ namespace Markdown
             const string result = "Внутри <strong>двойного <em>одинарное <strike>зачеркнутое</strike> конец</em> тоже</strong> работает.";
             parser.RenderToHtml(str).Should().BeEquivalentTo(result);
         }
-        
-        /*[Test]
+
+        [Test]
+        public void RenderToHtml_ShouldNotRender_WhenShieldedSingleUnderlines()
+        {
+            const string str = "Не часть разметки.\\_Вот это\\_, не должно выделиться тегом < em>.";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
+        }
+
+        [Test]
         public void RenderToHtml_ShouldNotRender_WhenDoubleUnderlinesWithinSingleUnderlines()
         {
             const string str = "Но не наоборот — внутри _одинарного __двойное__ не работает_.";
             parser.RenderToHtml(str).Should().BeEquivalentTo(str);
-        }*/
+        }
+
+        [Test]
+        public void RenderToHtml_ShouldNotRender_WhenUnderlinesWithinTextWithNumbers()
+        {
+            const string str = "Подчерки внутри текста c цифрами_12_3 не считаются выделением.";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
+        }
+
+        [Test]
+        public void RenderToHtml_ShouldNotRender_WhenNotAPairTags()
+        {
+            const string str = "__непарные _символы не считаются выделением.";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
+        }
+
+        [Test]
+        public void RenderToHtml_ShouldNotRender_WhenOnlyClosingTags()
+        {
+            const string str =
+                "За подчерками, начинающими выделение, должен следовать непробельный символ. Иначе эти_ подчерки_ не считаются выделением и остаются просто символами подчерка.";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
+        }
+
+        [Test]
+        public void RenderToHtml_ShouldNotRender_WhenOnlyOpenTags()
+        {
+            const string str =
+                "Подчерки, заканчивающие выделение, должны следовать за непробельным символом. Иначе эти _подчерки _не считаются_ окончанием выделения и остаются просто символами подчерка.";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
+        }
     }
 }

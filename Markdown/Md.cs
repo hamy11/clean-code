@@ -21,89 +21,41 @@ namespace Markdown
             tagSearchTree = BuildTagSearchTree(tagDictionary);
         }
 
-        private readonly Stack<MatchInfo> openedTagStack = new Stack<MatchInfo>();
-        private int prevTagEndPos;
-
-        public string RecoursionTagRender(IEnumerator<MatchInfo> tagIterator, string markdown, bool nested)
-        {
-            var renderBuilder = new StringBuilder();
-            while (tagIterator.MoveNext())
-            {
-                var closingTag = tagIterator.Current;
-                if (closingTag == null) break;
-
-                if (!openedTagStack.Any())
-                {
-                    renderBuilder.Append(markdown.Substring(prevTagEndPos, closingTag.Position - prevTagEndPos));
-                    openedTagStack.Push(closingTag);
-                    continue;
-                }
-
-                var openingTag = openedTagStack.Pop();
-                if (closingTag.PatternName == openingTag.PatternName)
-                {
-                    var tagLine = HtmlWriter.TagLine(openingTag.PatternName,
-                        CutBetweenTags(markdown, openingTag, closingTag));
-                    renderBuilder.Append(tagLine);
-                    prevTagEndPos = closingTag.Position + closingTag.PatternValue.Length;
-
-                    if (nested) return renderBuilder.ToString();
-
-                    continue;
-                }
-
-                var nextTag = closingTag;
-                var tagContentBuilder = new StringBuilder();
-                var prevTag = openingTag;
-
-                while (nextTag != null && openingTag.PatternName != nextTag.PatternName)
-                {
-                    openedTagStack.Push(nextTag);
-
-                    tagContentBuilder.Append(CutBetweenTags(markdown, prevTag, nextTag));
-                    tagContentBuilder.Append(RecoursionTagRender(tagIterator, markdown, true));
-
-                    prevTag = tagIterator.Current;
-                    tagIterator.MoveNext();
-                    nextTag = tagIterator.Current;
-                }
-                tagContentBuilder.Append(markdown.Substring(prevTagEndPos, nextTag.Position - prevTagEndPos));
-
-                renderBuilder.Append(HtmlWriter.TagLine(openingTag.PatternName, tagContentBuilder.ToString()));
-                prevTagEndPos = nextTag.Position + nextTag.PatternValue.Length;
-
-                if (nested) return renderBuilder.ToString();
-            }
-            renderBuilder.Append(markdown.Substring(prevTagEndPos));
-
-            return renderBuilder.ToString();
-        }
-
-        private static string CutBetweenTags(string markdown, MatchInfo prevTag, MatchInfo nextTag)
-        {
-            var cutStartIndex = prevTag.Position + prevTag.PatternValue.Length;
-            var cutLength = nextTag.Position - cutStartIndex;
-            var preNestedPart = markdown.Substring(cutStartIndex, cutLength);
-            return preNestedPart;
-        }
-
+        private readonly Stack<TagMatch> noPairTagStack = new Stack<TagMatch>();
+        
         public string RenderToHtml(string markdown)
         {
-            using (var tagIterator = tagSearchTree
-                .Find(markdown).Where(x => IsCorrectTag(markdown, x)).GetEnumerator())
+            using (var entityIterator = tagSearchTree.Find(markdown).GetEnumerator())
             {
-                return RecoursionTagRender(tagIterator, markdown, false);
+                return RecoursionTagRender(entityIterator, markdown);
             }
         }
 
-        public bool IsCorrectTag(string markdown, MatchInfo tag)
+        public string RecoursionTagRender(IEnumerator<IMatchType> entityIterator, string markdown)
         {
-            if (tag.Position > 0)
+            var renderBuilder = new StringBuilder();
+            while (entityIterator.MoveNext())
             {
-                return markdown[tag.Position - 1] != '\\';
-            }
+                if (entityIterator.Current == null) break;
+                if (entityIterator.Current.GetType() == typeof(SymbolMatch))
+                {
+                    var symbolMatch = (SymbolMatch) entityIterator.Current;
+                    renderBuilder.Append(symbolMatch.Symbol);
+                    continue;
+                }
 
-            return true;
+                var tagMatch = (TagMatch) entityIterator.Current;
+                if (noPairTagStack.Any() && tagMatch.TagDefinition == noPairTagStack.Peek().TagDefinition)
+                {
+                    noPairTagStack.Pop();
+                    return renderBuilder.ToString();
+                }
+                
+                noPairTagStack.Push(tagMatch);
+                var a = RecoursionTagRender(entityIterator, markdown);
+                renderBuilder.Append(HtmlWriter.TagLine(tagMatch.TagName, a));
+            }
+            return renderBuilder.ToString();
         }
 
         public Tree BuildTagSearchTree(Dictionary<string, string> tagDictionary)

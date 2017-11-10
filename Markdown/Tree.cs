@@ -1,9 +1,44 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Markdown
 {
+    public interface IMatchType
+    {
+
+    }
+
+    public class TagMatch : IMatchType
+    {
+        public string TagDefinition;
+        public string TagName;
+        public int Position;
+
+        public TagMatch(string tagName, string tagDefinition, int position)
+        {
+            TagDefinition = tagDefinition;
+            TagName = tagName;
+            Position = position;
+        }
+
+        public override string ToString()
+        {
+            return $"tagName - {TagName}; tagDefinition - {TagDefinition}; position - {Position};";
+        }
+    }
+
+    public class SymbolMatch : IMatchType
+    {
+        public char Symbol;
+        public int Position;
+
+        public SymbolMatch(char symbol, int position)
+        {
+            Symbol = symbol;
+            Position = position;
+        }
+    }
+
     public class Tree //Aho-Corasick search tree
     {
         private readonly Node<char, string> root = new Node<char, string>();
@@ -28,7 +63,7 @@ namespace Markdown
             }
 
             node.CurrentPrefix = word.ToString();
-            node.Values.Add(value);
+            node.Value = value;
         }
 
         public void Build()
@@ -62,7 +97,7 @@ namespace Markdown
             }
         }
 
-        public IEnumerable<MatchInfo> Find(string text)
+        public IEnumerable<IMatchType> Find(string text)
         {
             var node = root;
             for (var i = 0; i < text.Length; i++)
@@ -73,13 +108,19 @@ namespace Markdown
 
                 node = node[symbol] ?? root;
 
-                if (node == root) continue;
+                //если это не одно из состояний автомата (т.е данный символ это часть текста, а не какого-либо тега)
+                if (node == root)
+                {
+                    yield return new SymbolMatch(text[i], i);
+                    continue;
+                }
 
                 var nextSymbolPosition = i + 1;
                 var nextNodeExists = nextSymbolPosition < text.Length && node[text[nextSymbolPosition]] != null;
-                if (!nextNodeExists) // проверяем есть ли следующее состояние автомата, включающее текущее
-                    yield return
-                        new MatchInfo(node.Values.First(), node.CurrentPrefix, i - node.CurrentPrefix.Length + 1);
+
+                // проверяем, есть ли следующее состояние автомата, включающее текущее
+                if (!nextNodeExists) 
+                    yield return new TagMatch(node.Value, node.CurrentPrefix, i - node.CurrentPrefix.Length + 1);
             }
         }
 
@@ -99,6 +140,7 @@ namespace Markdown
             }
 
             public TNode Word { get; }
+
             public string CurrentPrefix { get; set; }
 
             public Node<TNode, TNodeValue> Parent { get; }
@@ -111,7 +153,7 @@ namespace Markdown
                 set { children[c] = value; }
             }
 
-            public List<TNodeValue> Values { get; } = new List<TNodeValue>();
+            public TNodeValue Value { get; set; }
 
             public IEnumerator<Node<TNode, TNodeValue>> GetEnumerator()
             {
@@ -122,30 +164,6 @@ namespace Markdown
             {
                 return GetEnumerator();
             }
-
-            public override string ToString()
-            {
-                return Word.ToString();
-            }
-        }
-    }
-
-    public class MatchInfo
-    {
-        public string PatternName;
-        public string PatternValue;
-        public int Position;
-
-        public MatchInfo(string patternName, string patternValue, int position)
-        {
-            PatternName = patternName;
-            PatternValue = patternValue;
-            Position = position;
-        }
-
-        public override string ToString()
-        {
-            return $"patternName - {PatternName}; position - {Position};";
         }
     }
 }
