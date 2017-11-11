@@ -20,7 +20,6 @@ namespace Markdown
             const string str = "string without tags";
             parser.RenderToHtml(str).Should().BeEquivalentTo(str);
         }
-        
 
         [Test]
         public void RenderToHtml_ShouldRenderEmTag_WhenSurroundedBySingleUnderlines()
@@ -59,6 +58,7 @@ namespace Markdown
             const string result = "Внутри <strong>двойного выделения <em>одинарное</em> тоже</strong> работает.";
             parser.RenderToHtml(str).Should().BeEquivalentTo(result);
         }
+
         [Test]
         public void RenderToHtml_ShouldRenderEmWithinStrong_WhenAlotSingleUnderlinesWithinDoubleUnderlines()
         {
@@ -71,14 +71,15 @@ namespace Markdown
         public void RenderToHtml_ShouldRender_WhenStrikeWithinSingleUnderlineWithinDoubleUnderline()
         {
             const string str = "Внутри __двойного _одинарное ~~зачеркнутое~~ конец_ тоже__ работает.";
-            const string result = "Внутри <strong>двойного <em>одинарное <strike>зачеркнутое</strike> конец</em> тоже</strong> работает.";
+            const string result =
+                "Внутри <strong>двойного <em>одинарное <strike>зачеркнутое</strike> конец</em> тоже</strong> работает.";
             parser.RenderToHtml(str).Should().BeEquivalentTo(result);
         }
 
         [Test]
         public void RenderToHtml_ShouldNotRender_WhenShieldedSingleUnderlines()
         {
-            const string str = "Не часть разметки.\\_Вот это\\_, не должно выделиться тегом < em>.";
+            const string str = "Не часть разметки. \\_Вот это\\_ , не должно выделиться тегом < em>.";
             parser.RenderToHtml(str).Should().BeEquivalentTo(str);
         }
 
@@ -86,7 +87,8 @@ namespace Markdown
         public void RenderToHtml_ShouldNotRender_WhenDoubleUnderlinesWithinSingleUnderlines()
         {
             const string str = "Но не наоборот — внутри _одинарного __двойное__ не работает_.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
+            const string expected = "Но не наоборот — внутри <em>одинарного __двойное__ не работает</em>.";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
         }
 
         [Test]
@@ -114,9 +116,9 @@ namespace Markdown
         [Test]
         public void RenderToHtml_ShouldNotRender_WhenOnlyOpenTags()
         {
-            const string str =
-                "Подчерки, заканчивающие выделение, должны следовать за непробельным символом. Иначе эти _подчерки _не считаются_ окончанием выделения и остаются просто символами подчерка.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
+            const string str = "Подчерки, заканчивающие _выделение _не считаются_ окончанием выделения";
+            const string expected = "Подчерки, заканчивающие _выделение <em>не считаются</em> окончанием выделения";
+            parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
         }
     }
 }

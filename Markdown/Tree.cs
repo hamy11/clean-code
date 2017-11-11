@@ -8,22 +8,15 @@ namespace Markdown
 
     }
 
-    public class TagMatch : IMatchType
+    public class PatternMatch : IMatchType
     {
-        public string TagDefinition;
-        public string TagName;
+        public string PatternValue;
         public int Position;
 
-        public TagMatch(string tagName, string tagDefinition, int position)
+        public PatternMatch(string patternValue, int position)
         {
-            TagDefinition = tagDefinition;
-            TagName = tagName;
+            PatternValue = patternValue;
             Position = position;
-        }
-
-        public override string ToString()
-        {
-            return $"tagName - {TagName}; tagDefinition - {TagDefinition}; position - {Position};";
         }
     }
 
@@ -120,7 +113,7 @@ namespace Markdown
 
                 // проверяем, есть ли следующее состояние автомата, включающее текущее
                 if (!nextNodeExists) 
-                    yield return new TagMatch(node.Value, node.CurrentPrefix, i - node.CurrentPrefix.Length + 1);
+                    yield return new PatternMatch(node.CurrentPrefix, i - node.CurrentPrefix.Length + 1);
             }
         }
 

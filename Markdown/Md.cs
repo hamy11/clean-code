@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -8,6 +8,8 @@ namespace Markdown
     public class Md
     {
         private readonly Tree tagSearchTree;
+        private readonly HtmlWriter htmlWriter;
+        private readonly Stack<Tag> noPairTagStack = new Stack<Tag>();
 
         public Md()
         {
@@ -17,21 +19,32 @@ namespace Markdown
                 {"__", "strong"},
                 {"~~", "strike"}
             };
-
+            htmlWriter = new HtmlWriter(tagDictionary);
             tagSearchTree = BuildTagSearchTree(tagDictionary);
         }
 
-        private readonly Stack<TagMatch> noPairTagStack = new Stack<TagMatch>();
-        
+        public Tree BuildTagSearchTree(Dictionary<string, string> tagDictionary)
+        {
+            var tree = new Tree();
+            foreach (var pair in tagDictionary)
+            {
+                tree.Add(pair);
+            }
+            tree.Build();
+            return tree;
+        }
+
         public string RenderToHtml(string markdown)
         {
             using (var entityIterator = tagSearchTree.Find(markdown).GetEnumerator())
             {
-                return RecoursionTagRender(entityIterator, markdown);
+                bool pairTagFounded;
+                return RecoursionTagRender(entityIterator, markdown, out pairTagFounded);
             }
         }
 
-        public string RecoursionTagRender(IEnumerator<IMatchType> entityIterator, string markdown)
+        private string RecoursionTagRender(IEnumerator<IMatchType> entityIterator, string markdown,
+            out bool isPairTagFounded)
         {
             var renderBuilder = new StringBuilder();
             while (entityIterator.MoveNext())
@@ -44,29 +57,62 @@ namespace Markdown
                     continue;
                 }
 
-                var currentTag = (TagMatch) entityIterator.Current;
-                if (noPairTagStack.Any() && currentTag.TagDefinition == noPairTagStack.Peek().TagDefinition)
+                var tagMatch = (PatternMatch) entityIterator.Current;
+                var tag = htmlWriter.GetTagEntity(tagMatch.PatternValue,tagMatch.Position, GetTagType(tagMatch, markdown));
+                if (noPairTagStack.Any() && IsPair(tag, noPairTagStack.Peek()))
                 {
                     noPairTagStack.Pop();
+                    isPairTagFounded = true;
                     return renderBuilder.ToString();
                 }
-                
-                noPairTagStack.Push(currentTag);
-                var currentTagContent = RecoursionTagRender(entityIterator, markdown);
-                renderBuilder.Append(HtmlWriter.TagLine(currentTag.TagName, currentTagContent));
+
+                noPairTagStack.Push(tag);
+                var currentTagContent = RecoursionTagRender(entityIterator, markdown, out isPairTagFounded);
+                var renderedLine = RenderLine(isPairTagFounded, tag, currentTagContent, markdown);
+
+                renderBuilder.Append(renderedLine);
             }
+            isPairTagFounded = false;
             return renderBuilder.ToString();
         }
 
-        public Tree BuildTagSearchTree(Dictionary<string, string> tagDictionary)
+        private string RenderLine(bool isPairTagFounded, Tag tag, string currentTagContent, string markdown)
         {
-            var tree = new Tree();
-            foreach (var pair in tagDictionary)
+            return isPairTagFounded
+                ? CheckRules(tag, noPairTagStack, markdown)
+                    ? $"<{tag.Name}>{currentTagContent}</{tag.Name}>"
+                    : $"{tag.Definition}{currentTagContent}{tag.Definition}"
+                : $"{tag.Definition}{currentTagContent}";
+        }
+
+        private static bool CheckRules(Tag currentTag, Stack<Tag> noPairTagStack, string markdown)
+        {
+            var rules = new List<Func<bool>>
             {
-                tree.Add(pair);
-            }
-            tree.Build();
-            return tree;
+                () => !(currentTag.Name == "strong" && noPairTagStack.Any() && noPairTagStack.Peek().Name == "em"),
+                () => !(currentTag.Position > 0 && markdown[currentTag.Position - 1] == '\\')
+            };
+
+            return rules.All(rule => rule());
+        }
+
+        private static TagType GetTagType(PatternMatch tagMatch, string markdown)
+        {
+            var previousSymbolExists = tagMatch.Position > 0;
+            var isNotOpeningTag = previousSymbolExists && markdown[tagMatch.Position - 1] != ' ';
+            var followingSymbolExists = tagMatch.Position + tagMatch.PatternValue.Length < markdown.Length - 1;
+            var isNotClosingTag = followingSymbolExists &&
+                                  markdown[tagMatch.Position + tagMatch.PatternValue.Length] != ' ';
+
+            if (isNotClosingTag && isNotOpeningTag)
+                return TagType.Fake;
+
+            return isNotClosingTag ? TagType.Opening : TagType.Closing;
+        }
+
+        private static bool IsPair(Tag currentTag, Tag previousTag)
+        {
+            return currentTag.Definition == previousTag.Definition && currentTag.Type != previousTag.Type;
         }
     }
 }
