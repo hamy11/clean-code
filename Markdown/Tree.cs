@@ -82,18 +82,18 @@ namespace Markdown
                 // fail link of root is root
                 if (node == root)
                 {
-                    root.Fail = root;
+                    root.FailState = root;
                     continue;
                 }
 
-                var fail = node.Parent.Fail;
+                var fail = node.Parent.FailState;
 
                 while (fail[node.Word] == null && fail != root)
-                    fail = fail.Fail;
+                    fail = fail.FailState;
 
-                node.Fail = fail[node.Word] ?? root;
-                if (node.Fail == node)
-                    node.Fail = root;
+                node.FailState = fail[node.Word] ?? root;
+                if (node.FailState == node)
+                    node.FailState = root;
             }
         }
 
@@ -104,7 +104,7 @@ namespace Markdown
             {
                 var symbol = text[i];
                 while (node[symbol] == null && node != root)
-                    node = node.Fail;
+                    node = node.FailState;
 
                 node = node[symbol] ?? root;
 
@@ -145,12 +145,12 @@ namespace Markdown
 
             public Node<TNode, TNodeValue> Parent { get; }
 
-            public Node<TNode, TNodeValue> Fail { get; set; }
+            public Node<TNode, TNodeValue> FailState { get; set; }
 
-            public Node<TNode, TNodeValue> this[TNode c]
+            public Node<TNode, TNodeValue> this[TNode child]
             {
-                get { return children.ContainsKey(c) ? children[c] : null; }
-                set { children[c] = value; }
+                get { return children.ContainsKey(child) ? children[child] : null; }
+                set { children[child] = value; }
             }
 
             public TNodeValue Value { get; set; }

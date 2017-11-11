@@ -44,16 +44,16 @@ namespace Markdown
                     continue;
                 }
 
-                var tagMatch = (TagMatch) entityIterator.Current;
-                if (noPairTagStack.Any() && tagMatch.TagDefinition == noPairTagStack.Peek().TagDefinition)
+                var currentTag = (TagMatch) entityIterator.Current;
+                if (noPairTagStack.Any() && currentTag.TagDefinition == noPairTagStack.Peek().TagDefinition)
                 {
                     noPairTagStack.Pop();
                     return renderBuilder.ToString();
                 }
                 
-                noPairTagStack.Push(tagMatch);
-                var a = RecoursionTagRender(entityIterator, markdown);
-                renderBuilder.Append(HtmlWriter.TagLine(tagMatch.TagName, a));
+                noPairTagStack.Push(currentTag);
+                var currentTagContent = RecoursionTagRender(entityIterator, markdown);
+                renderBuilder.Append(HtmlWriter.TagLine(currentTag.TagName, currentTagContent));
             }
             return renderBuilder.ToString();
         }
