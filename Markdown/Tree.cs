@@ -34,45 +34,31 @@ namespace Markdown
 
     public class Tree //Aho-Corasick search tree
     {
-        private readonly Node<char, string> root = new Node<char, string>();
+        private readonly Node<char> root = new Node<char>();
 
-        public void Add(string s)
-        {
-            Add(s, s);
-        }
-
-        public void Add(KeyValuePair<string, string> pair)
-        {
-            Add(pair.Key, pair.Value);
-        }
-
-        public void Add(IEnumerable<char> word, string value)
+        public void Add(IEnumerable<char> pattern)
         {
             var node = root;
-            foreach (var symbol in word)
+            foreach (var symbol in pattern)
             {
-                var child = node[symbol] ?? (node[symbol] = new Node<char, string>(symbol, node));
+                var child = node[symbol] ?? (node[symbol] = new Node<char>(symbol, node));
                 node = child;
             }
-
-            node.CurrentPrefix = word.ToString();
-            node.Value = value;
+            node.CurrentPrefix = pattern.ToString();
         }
 
         public void Build()
         {
-            var queue = new Queue<Node<char, string>>();
+            var queue = new Queue<Node<char>>();
             queue.Enqueue(root);
 
             while (queue.Count > 0)
             {
                 var node = queue.Dequeue();
 
-                // visit children
                 foreach (var child in node)
                     queue.Enqueue(child);
 
-                // fail link of root is root
                 if (node == root)
                 {
                     root.FailState = root;
@@ -90,7 +76,7 @@ namespace Markdown
             }
         }
 
-        public IEnumerable<IMatchType> Find(string text)
+        public IEnumerable<IMatchType> RoundMatches(string text)
         {
             var node = root;
             for (var i = 0; i < text.Length; i++)
@@ -112,21 +98,21 @@ namespace Markdown
                 var nextNodeExists = nextSymbolPosition < text.Length && node[text[nextSymbolPosition]] != null;
 
                 // проверяем, есть ли следующее состояние автомата, включающее текущее
-                if (!nextNodeExists) 
+                if (!nextNodeExists)
                     yield return new PatternMatch(node.CurrentPrefix, i - node.CurrentPrefix.Length + 1);
             }
         }
 
-        private class Node<TNode, TNodeValue> : IEnumerable<Node<TNode, TNodeValue>>
+        private class Node<TNode> : IEnumerable<Node<TNode>>
         {
-            private readonly Dictionary<TNode, Node<TNode, TNodeValue>> children =
-                new Dictionary<TNode, Node<TNode, TNodeValue>>();
+            private readonly Dictionary<TNode, Node<TNode>> children =
+                new Dictionary<TNode, Node<TNode>>();
 
             public Node()
             {
             }
 
-            public Node(TNode word, Node<TNode, TNodeValue> parent)
+            public Node(TNode word, Node<TNode> parent)
             {
                 Word = word;
                 Parent = parent;
@@ -136,19 +122,17 @@ namespace Markdown
 
             public string CurrentPrefix { get; set; }
 
-            public Node<TNode, TNodeValue> Parent { get; }
+            public Node<TNode> Parent { get; }
 
-            public Node<TNode, TNodeValue> FailState { get; set; }
+            public Node<TNode> FailState { get; set; }
 
-            public Node<TNode, TNodeValue> this[TNode child]
+            public Node<TNode> this[TNode child]
             {
                 get { return children.ContainsKey(child) ? children[child] : null; }
                 set { children[child] = value; }
             }
 
-            public TNodeValue Value { get; set; }
-
-            public IEnumerator<Node<TNode, TNodeValue>> GetEnumerator()
+            public IEnumerator<Node<TNode>> GetEnumerator()
             {
                 return children.Values.GetEnumerator();
             }

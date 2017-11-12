@@ -14,11 +14,6 @@ namespace Markdown
         {
             TagDictionary = tagDictionary;
         }
-
-        public static string TagLine(string tagName, string line)
-        {
-            return $"<{tagName}>{line}</{tagName}>";
-        }
     }
 
     public class Tag

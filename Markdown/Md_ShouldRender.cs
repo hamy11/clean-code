@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+﻿using System;
+using FluentAssertions;
 using NUnit.Framework;
 
 namespace Markdown
@@ -12,6 +13,12 @@ namespace Markdown
         public void SetUp()
         {
             parser = new Md();
+        }
+
+        [Test]
+        public void RenderToHtml_ShouldThrowException_WhenMarkdownIsNull()
+        {
+            new Action(() => parser.RenderToHtml(null)).ShouldThrow<ArgumentException>();
         }
 
         [Test]

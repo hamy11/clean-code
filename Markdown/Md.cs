@@ -28,7 +28,7 @@ namespace Markdown
             var tree = new Tree();
             foreach (var pair in tagDictionary)
             {
-                tree.Add(pair);
+                tree.Add(pair.Key);
             }
             tree.Build();
             return tree;
@@ -36,7 +36,9 @@ namespace Markdown
 
         public string RenderToHtml(string markdown)
         {
-            using (var entityIterator = tagSearchTree.Find(markdown).GetEnumerator())
+            if(markdown == null)
+                throw new ArgumentException();
+            using (var entityIterator = tagSearchTree.RoundMatches(markdown).GetEnumerator())
             {
                 bool pairTagFounded;
                 return RecoursionTagRender(entityIterator, markdown, out pairTagFounded);
@@ -47,33 +49,40 @@ namespace Markdown
             out bool isPairTagFounded)
         {
             var renderBuilder = new StringBuilder();
-            while (entityIterator.MoveNext())
+            while (entityIterator.MoveNext() && entityIterator.Current != null)
             {
-                if (entityIterator.Current == null) break;
-                if (entityIterator.Current.GetType() == typeof(SymbolMatch))
-                {
-                    var symbolMatch = (SymbolMatch) entityIterator.Current;
-                    renderBuilder.Append(symbolMatch.Symbol);
-                    continue;
-                }
-
-                var tagMatch = (PatternMatch) entityIterator.Current;
-                var tag = htmlWriter.GetTagEntity(tagMatch.PatternValue,tagMatch.Position, GetTagType(tagMatch, markdown));
+                if (TrySaveSymbol(entityIterator.Current, renderBuilder)) continue;
+                var tag = GetTag(entityIterator.Current, markdown);
                 if (noPairTagStack.Any() && IsPair(tag, noPairTagStack.Peek()))
                 {
                     noPairTagStack.Pop();
                     isPairTagFounded = true;
+
                     return renderBuilder.ToString();
                 }
-
                 noPairTagStack.Push(tag);
                 var currentTagContent = RecoursionTagRender(entityIterator, markdown, out isPairTagFounded);
                 var renderedLine = RenderLine(isPairTagFounded, tag, currentTagContent, markdown);
-
                 renderBuilder.Append(renderedLine);
             }
             isPairTagFounded = false;
+
             return renderBuilder.ToString();
+        }
+
+        private Tag GetTag(IMatchType currentEntity, string markdown)
+        {
+            var tagMatch = (PatternMatch) currentEntity;
+            return htmlWriter.GetTagEntity(tagMatch.PatternValue, tagMatch.Position,
+                GetTagType(tagMatch, markdown));
+        }
+
+        private static bool TrySaveSymbol(IMatchType currentEntity, StringBuilder renderBuilder)
+        {
+            if (currentEntity.GetType() != typeof(SymbolMatch)) return false;
+            var symbolMatch = (SymbolMatch) currentEntity;
+            renderBuilder.Append(symbolMatch.Symbol);
+            return true;
         }
 
         private string RenderLine(bool isPairTagFounded, Tag tag, string currentTagContent, string markdown)
@@ -111,8 +120,6 @@ namespace Markdown
         }
 
         private static bool IsPair(Tag currentTag, Tag previousTag)
-        {
-            return currentTag.Definition == previousTag.Definition && currentTag.Type != previousTag.Type;
-        }
+            => currentTag.Definition == previousTag.Definition && currentTag.Type != previousTag.Type;
     }
 }
