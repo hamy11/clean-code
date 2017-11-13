@@ -7,7 +7,7 @@ namespace Markdown
 {
     public class Md
     {
-        private readonly SearchTree tagSearchSearchTree;
+        private readonly SearchTree tagSearchTree;
         private readonly HtmlWriter htmlWriter;
         private readonly Stack<Tag> openedTagsStack = new Stack<Tag>();
         private readonly TagsSearchStatusHandler handler = new TagsSearchStatusHandler();
@@ -21,7 +21,7 @@ namespace Markdown
                 {"~~", "strike"}
             };
             htmlWriter = new HtmlWriter(tagDictionary);
-            tagSearchSearchTree = BuildTagSearchTree(tagDictionary);
+            tagSearchTree = BuildTagSearchTree(tagDictionary);
         }
 
         public SearchTree BuildTagSearchTree(Dictionary<string, string> tagDictionary)
@@ -38,7 +38,7 @@ namespace Markdown
         public string RenderToHtml(string markdown)
         {
             if (markdown == null) throw new ArgumentException();
-            using (var entityIterator = tagSearchSearchTree.RoundMatches(markdown).GetEnumerator())
+            using (var entityIterator = tagSearchTree.RoundMatches(markdown).GetEnumerator())
             {
                 return RecoursionTagRender(entityIterator, markdown);
             }
@@ -56,15 +56,11 @@ namespace Markdown
                 if (handler.IsClosingTagFounded(tag, openedTagsStack)) return renderBuilder.ToString();
 
                 if (tag.Type == TagType.Opening) openedTagsStack.Push(tag);
+
                 var currentTagContent = RecoursionTagRender(entityIterator, markdown);
                 var isCorrectTag = TagAnalyser.CheckTagRules(tag, openedTagsStack, markdown);
 
-                //Когда по рекурсии поднялись вверх через беспарные теги и нашли парный
-                if (handler.NoPairTagDetected && tag.IsPairTo(handler.ClosingTag))
-                {
-                    handler.PairTagFounded = true;
-                    handler.NoPairTagDetected = false;
-                }
+                handler.UpdateSearchStatuses(tag);
 
                 var renderedLine = HtmlWriter.RenderLine(tag, currentTagContent, handler.PairTagFounded, isCorrectTag);
                 renderBuilder.Append(renderedLine);
@@ -78,7 +74,7 @@ namespace Markdown
         {
             public bool NoPairTagDetected;
             public bool PairTagFounded;
-            public Tag ClosingTag;
+            private Tag closingTag;
 
             public bool IsClosingTagFounded(Tag tag, Stack<Tag> openedTagsStack)
             {
@@ -91,10 +87,18 @@ namespace Markdown
                 else
                 {
                     NoPairTagDetected = true;
-                    ClosingTag = tag;
+                    closingTag = tag;
                 }
                 openedTagsStack.Pop();
                 return true;
+            }
+
+            public void UpdateSearchStatuses(Tag tag)
+            {
+                if (!NoPairTagDetected || !tag.IsPairTo(closingTag)) return;
+                //Когда по рекурсии поднялись вверх через беспарные теги и нашли парный
+                PairTagFounded = true;
+                NoPairTagDetected = false;
             }
         }
 

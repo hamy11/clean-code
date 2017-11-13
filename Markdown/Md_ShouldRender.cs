@@ -69,6 +69,7 @@ namespace Markdown
             parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
         }
 
+        [TestCase("t a_ _end_ b_", "t a_ <em>end</em> b_", TestName = "Когда открывающий тег бег пары")]
         [TestCase("t _a end", "t _a end", TestName = "Когда открывающий тег бег пары")]
         [TestCase("__a _b c", "__a _b c", TestName = "Когда два разных открывающих тега бег пары")]
         [TestCase("t _a end", "t _a end", TestName = "Когда открывающий тег бег пары")]
@@ -89,9 +90,6 @@ namespace Markdown
     [TestFixture]
     public class SearchTreeShould
     {
-
-        
-
         [Test]
         public void RoundMatches_ShouldFindMaxState()
         {
