@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
 
@@ -21,28 +23,18 @@ namespace Markdown
             new Action(() => parser.RenderToHtml(null)).ShouldThrow<ArgumentException>();
         }
 
-        [Test]
-        public void RenderToHtml_ShouldReturnOriginal_WhenNoUnderlines()
+        [TestCase("", TestName = "Пустая строка")]
+        [TestCase("string without tags", TestName = "Строка без тегов")]
+        public void RenderToHtml_ShouldReturnOriginal(string str)
         {
-            const string str = "string without tags";
             parser.RenderToHtml(str).Should().BeEquivalentTo(str);
         }
 
-        [Test]
-        public void RenderToHtml_ShouldRenderEmTag_WhenSurroundedBySingleUnderlines()
+        [TestCase("a _b_ c", "a <em>b</em> c", TestName = "Одиночные подчеркивания")]
+        [TestCase("__b__ c", "<strong>b</strong> c", TestName = "Двойные подчеркивания")]
+        public void RenderToHtml_ShouldRender_WhenNonNestedTags(string str, string expected)
         {
-            const string str = "Текст _окруженный с двух сторон_ одинарными символами подчерка";
-            const string expected = "Текст <em>окруженный с двух сторон</em> одинарными символами подчерка";
             parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
-        }
-
-        [Test]
-        public void RenderToHtml_ShouldRenderStrongTag_WhenSurroundedByDoubleUnderlines()
-        {
-            const string str = "__Двумя символами__ — должен становиться жирным с помощью тега <strong>.";
-            const string result =
-                "<strong>Двумя символами</strong> — должен становиться жирным с помощью тега <strong>.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(result);
         }
 
         [TestCase("text _content_ abc _content1_ end", "text <em>content</em> abc <em>content1</em> end",
@@ -58,74 +50,104 @@ namespace Markdown
             parser.RenderToHtml(baseString).Should().BeEquivalentTo(expected);
         }
 
-        [Test]
-        public void RenderToHtml_ShouldRenderEmWithinStrong_WhenSingleUnderlinesWithinDoubleUnderlines()
+        [TestCase("a __b _c_ d__ e", "a <strong>b <em>c</em> d</strong> e",
+             TestName = "Одинарные подчеркивания внутри двойных")]
+        [TestCase("a __b _c_ d _e_ f__ g", "a <strong>b <em>c</em> d <em>e</em> f</strong> g",
+             TestName = "Две пары одинарных подчеркиваний внутри двойных")]
+        [TestCase("a __b _c ~~d~~ e_ f__ g", "a <strong>b <em>c <strike>d</strike> e</em> f</strong> g",
+             TestName = "Тильды внутри одинарных подчеркиваний внутри двойных")]
+        public void RenderToHtml_ShouldRenderNestedTags(string str, string expected)
         {
-            const string str = "Внутри __двойного выделения _одинарное_ тоже__ работает.";
-            const string result = "Внутри <strong>двойного выделения <em>одинарное</em> тоже</strong> работает.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(result);
-        }
-
-        [Test]
-        public void RenderToHtml_ShouldRenderEmWithinStrong_WhenAlotSingleUnderlinesWithinDoubleUnderlines()
-        {
-            const string str = "начало __пре _нестед1_ центр _нестед2_ паст__ конец.";
-            const string result = "начало <strong>пре <em>нестед1</em> центр <em>нестед2</em> паст</strong> конец.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(result);
-        }
-
-        [Test]
-        public void RenderToHtml_ShouldRender_WhenStrikeWithinSingleUnderlineWithinDoubleUnderline()
-        {
-            const string str = "Внутри __двойного _одинарное ~~зачеркнутое~~ конец_ тоже__ работает.";
-            const string result =
-                "Внутри <strong>двойного <em>одинарное <strike>зачеркнутое</strike> конец</em> тоже</strong> работает.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(result);
-        }
-
-        [Test]
-        public void RenderToHtml_ShouldNotRender_WhenShieldedSingleUnderlines()
-        {
-            const string str = "Не часть разметки. \\_Вот это\\_ , не должно выделиться тегом < em>.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
-        }
-
-        [Test]
-        public void RenderToHtml_ShouldNotRender_WhenDoubleUnderlinesWithinSingleUnderlines()
-        {
-            const string str = "Но не наоборот — внутри _одинарного __двойное__ не работает_.";
-            const string expected = "Но не наоборот — внутри <em>одинарного __двойное__ не работает</em>.";
             parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
         }
 
-        [Test]
-        public void RenderToHtml_ShouldNotRender_WhenUnderlinesWithinTextWithNumbers()
+        [TestCase("a \\_b\\_ c", "a \\_b\\_ c", TestName = "Когда теги экранированы")]
+        [TestCase("a b_12_3 c", "a b_12_3 c", TestName = "Когда теги внутри слова с цифрами")]
+        [TestCase("a _b __c__ d_", "a <em>b __c__ d</em>", TestName = "Когда двойное подчеркивание внутри одинарного")]
+        public void RenderToHtml_ShouldNotRenderDueToRules(string str, string expected)
         {
-            const string str = "Подчерки внутри текста c цифрами_12_3 не считаются выделением.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
-        }
-
-        [Test]
-        public void RenderToHtml_ShouldNotRender_WhenNotAPairTags()
-        {
-            const string str = "__непарные _символы не считаются выделением.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
-        }
-
-        [Test]
-        public void RenderToHtml_ShouldNotRender_WhenOnlyClosingTags()
-        {
-            const string str =
-                "За подчерками, начинающими выделение, должен следовать непробельный символ. Иначе эти_ подчерки_ не считаются выделением и остаются просто символами подчерка.";
-            parser.RenderToHtml(str).Should().BeEquivalentTo(str);
-        }
-
-        [Test]
-        public void RenderToHtml_ShouldNotRender_WhenOnlyOpenTags()
-        {
-            const string str = "Подчерки, заканчивающие _выделение _не считаются_ окончанием выделения";
-            const string expected = "Подчерки, заканчивающие _выделение <em>не считаются</em> окончанием выделения";
             parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
+        }
+
+        [TestCase("t _a end", "t _a end", TestName = "Когда открывающий тег бег пары")]
+        [TestCase("__a _b c", "__a _b c", TestName = "Когда два разных открывающих тега бег пары")]
+        [TestCase("t _a end", "t _a end", TestName = "Когда открывающий тег бег пары")]
+        [TestCase("t a_ end_ b", "t a_ end_ b", TestName = "Когда два закрывающих тега бег пары")]
+        [TestCase("t _a __b  end", "t _a __b  end", TestName = "Когда два открывающих тега бег пары")]
+        [TestCase("t _a _a c d_ end", "t _a <em>a c d</em> end",
+             TestName = "Когда два открывающих и один закрывающий тег")]
+        [TestCase("t _a __b d_ end", "t <em>a __b d</em> end", TestName = "Когда открывающий тег __ внутри пары тегов _"
+         )]
+        [TestCase("t _a __b __c d_ end", "t <em>a __b __c d</em> end",
+             TestName = "Когда два открывающих тега __ внутри пары тегов _")]
+        public void RenderToHtml_ShouldRender_WhenTagsWithoutPairExists(string str, string expected)
+        {
+            parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
+        }
+    }
+
+    [TestFixture]
+    public class SearchTreeShould
+    {
+
+        
+
+        [Test]
+        public void RoundMatches_ShouldFindMaxState()
+        {
+            var searchTree = new SearchTree();
+            searchTree.Add("_");
+            searchTree.Add("__");
+            searchTree.Add("___");
+            searchTree.Build();
+            var result = searchTree.RoundMatches("___").ToList();
+            var expected = new List<IMatch> {new PatternMatch("___", 0)};
+            CollectionAssert.AreEqual(expected, result);
+        }
+
+        [Test]
+        public void RoundMatches_ShouldFind_WhenDifferentPatterns()
+        {
+            var searchTree = new SearchTree();
+            searchTree.Add("~");
+            searchTree.Add("_");
+            searchTree.Add("_~");
+            searchTree.Add("__");
+            searchTree.Build();
+            var result = searchTree.RoundMatches("__ _~ _~~").ToList();
+            var expected = new List<IMatch>
+            {
+                new PatternMatch("__", 0),
+                new SymbolMatch(' ', 2),
+                new PatternMatch("_~", 3),
+                new SymbolMatch(' ', 5),
+                new PatternMatch("_~", 6),
+                new PatternMatch("~", 8)
+            };
+            CollectionAssert.AreEqual(expected, result);
+        }
+
+        [Test]
+        public void RoundMatches_ShouldThrow_WhenRoundingWithoutBuild()
+        {
+            var searchTree = new SearchTree();
+            searchTree.Add("_");
+            searchTree.Build();
+            searchTree.Add("~~");
+            new Action(() => searchTree.RoundMatches("~_~~").ToList()).ShouldThrow<InvalidOperationException>();
+        }
+
+        [Test]
+        public void RoundMatches_ShouldFind_WhenAddPatternAfterBuild()
+        {
+            var searchTree = new SearchTree();
+            searchTree.Add("_");
+            searchTree.Build();
+            searchTree.Add("___");
+            searchTree.Build();
+            var result = searchTree.RoundMatches("___").ToList();
+            var expected = new List<IMatch> { new PatternMatch("___", 0) };
+            CollectionAssert.AreEqual(expected, result);
         }
     }
 }

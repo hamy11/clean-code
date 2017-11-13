@@ -59,7 +59,10 @@
     <Compile Include="Md.cs" />
     <Compile Include="Md_ShouldRender.cs" />
     <Compile Include="Program.cs" />
-    <Compile Include="Tree.cs" />
+    <Compile Include="Tag.cs" />
+    <Compile Include="TagAnalyser.cs" />
+    <Compile Include="TagType.cs" />
+    <Compile Include="SearchTree.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

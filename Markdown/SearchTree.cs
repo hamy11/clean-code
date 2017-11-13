@@ -1,43 +1,75 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Markdown
 {
-    public interface IMatchType
+    public interface IMatch
     {
 
     }
 
-    public class PatternMatch : IMatchType
+    public class PatternMatch : IMatch
     {
-        public string PatternValue;
-        public int Position;
+        public readonly string PatternValue;
+        public readonly int Position;
 
         public PatternMatch(string patternValue, int position)
         {
             PatternValue = patternValue;
             Position = position;
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+                return false;
+
+            var p = (PatternMatch) obj;
+            return p.PatternValue == PatternValue && p.Position == Position;
+        }
+
+        public override int GetHashCode()
+        {
+            return PatternValue.GetHashCode() ^ Position;
+        }
     }
 
-    public class SymbolMatch : IMatchType
+    public class SymbolMatch : IMatch
     {
-        public char Symbol;
-        public int Position;
+        public readonly char Symbol;
+        public readonly int Position;
 
         public SymbolMatch(char symbol, int position)
         {
             Symbol = symbol;
             Position = position;
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+                return false;
+
+            var p = (SymbolMatch) obj;
+            return p.Symbol == Symbol && p.Position == Position;
+        }
+
+        public override int GetHashCode()
+        {
+            return Symbol.GetHashCode() ^ Position;
+        }
     }
 
-    public class Tree //Aho-Corasick search tree
+    public class SearchTree //Aho-Corasick search tree
     {
         private readonly Node<char> root = new Node<char>();
+        private bool hasBuilded;
 
         public void Add(IEnumerable<char> pattern)
         {
+            if (pattern == null)
+                throw new ArgumentException();
             var node = root;
             foreach (var symbol in pattern)
             {
@@ -45,6 +77,7 @@ namespace Markdown
                 node = child;
             }
             node.CurrentPrefix = pattern.ToString();
+            hasBuilded = false;
         }
 
         public void Build()
@@ -74,10 +107,14 @@ namespace Markdown
                 if (node.FailState == node)
                     node.FailState = root;
             }
+            hasBuilded = true;
         }
 
-        public IEnumerable<IMatchType> RoundMatches(string text)
+        public IEnumerable<IMatch> RoundMatches(string text)
         {
+            if (!hasBuilded)
+                throw new InvalidOperationException();
+
             var node = root;
             for (var i = 0; i < text.Length; i++)
             {

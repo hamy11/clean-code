@@ -7,35 +7,28 @@ namespace Markdown
     {
         private static Dictionary<string, string> TagDictionary;
 
-        public Func<string, int, TagType, Tag> GetTagEntity =
+        public static Func<string, int, TagType, Tag> GetTagEntity =
             (definition, position, type) => new Tag(definition, position, TagDictionary[definition], type);
 
         public HtmlWriter(Dictionary<string, string> tagDictionary)
         {
             TagDictionary = tagDictionary;
         }
-    }
 
-    public class Tag
-    {
-        public string Definition;
-        public string Name;
-        public int Position;
-        public TagType Type;
-
-        public Tag(string definition, int position, string name, TagType type)
+        public Tag PatternMatchAsTag(IMatch currentEntity, string markdown)
         {
-            Definition = definition;
-            Position = position;
-            Name = name;
-            Type = type;
+            var tagMatch = (PatternMatch) currentEntity;
+            return GetTagEntity(tagMatch.PatternValue, tagMatch.Position,
+                TagAnalyser.GetTagType(tagMatch, markdown));
         }
-    }
 
-    public enum TagType
-    {
-        Fake = 0,
-        Opening = 1,
-        Closing = 2
+        public static string RenderLine(Tag tag, string currentTagContent, bool isPairTagFounded, bool isCorrectTag)
+        {
+            return isPairTagFounded
+                ? isCorrectTag
+                    ? $"<{tag.Name}>{currentTagContent}</{tag.Name}>"
+                    : $"{tag.Definition}{currentTagContent}{tag.Definition}"
+                : $"{tag.Definition}{currentTagContent}";
+        }
     }
 }
