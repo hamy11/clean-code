@@ -38,6 +38,6 @@
     public static class TagExtensions
     {
         public static bool IsPairTo(this Tag currentTag, Tag previousTag)
-            => currentTag.Definition == previousTag.Definition && currentTag.Type != previousTag.Type;
+            => previousTag != null && currentTag.Definition == previousTag.Definition && currentTag.Type != previousTag.Type;
     }
 }

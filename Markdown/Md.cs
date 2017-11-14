@@ -60,7 +60,7 @@ namespace Markdown
                 var currentTagContent = RecoursionTagRender(entityIterator, markdown);
                 var isCorrectTag = TagAnalyser.CheckTagRules(tag, openedTagsStack, markdown);
 
-                handler.UpdateSearchStatuses(tag);
+                handler.UpdateSearchStatuses(tag, openedTagsStack);
 
                 var renderedLine = HtmlWriter.RenderLine(tag, currentTagContent, handler.PairTagFounded, isCorrectTag);
                 renderBuilder.Append(renderedLine);
@@ -83,22 +83,30 @@ namespace Markdown
                 {
                     NoPairTagDetected = false;
                     PairTagFounded = true;
+                    openedTagsStack.Pop();
                 }
                 else
                 {
                     NoPairTagDetected = true;
                     closingTag = tag;
                 }
-                openedTagsStack.Pop();
                 return true;
             }
 
-            public void UpdateSearchStatuses(Tag tag)
+            public void UpdateSearchStatuses(Tag tag, Stack<Tag> openingTagsStack)
             {
-                if (!NoPairTagDetected || !tag.IsPairTo(closingTag)) return;
+                if (!NoPairTagDetected || !tag.IsPairTo(closingTag))
+                {
+                    if (closingTag != null && openingTagsStack.Any())
+                        openingTagsStack.Pop();
+                    return;
+                }
+
                 //Когда по рекурсии поднялись вверх через беспарные теги и нашли парный
                 PairTagFounded = true;
                 NoPairTagDetected = false;
+                closingTag = null;
+                openingTagsStack.Pop();
             }
         }
 

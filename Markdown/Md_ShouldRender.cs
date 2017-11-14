@@ -85,7 +85,16 @@ namespace Markdown
         {
             parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
         }
-    }
+
+        [Test,Timeout(1000)]
+         public void RenderToHtml_TimeoutTest()
+        {
+            const string str = "start __abc _somth _a abc__ closing1_ closing2_ end";
+            const string expected = "start <strong>abc _somth _a abc</strong> closing1_ closing2_ end";
+            for(var i = 0; i< 10000; i++)
+                parser.RenderToHtml(str).Should().BeEquivalentTo(expected);
+        }
+}
 
     [TestFixture]
     public class SearchTreeShould
